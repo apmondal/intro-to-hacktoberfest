@@ -1,0 +1,214 @@
+You have a perfect binary tree of height N. That is, it contains 2N+1 - 1 nodes.
+
+A path from the root to a leaf can be represented by an integer X which lies between 0 and 2N - 1 (both inclusive) as follows:
+
+Consider the N length binary representation of X. Start reading from the left, and at each bit, 0 denotes going to the left child, and 1 denotes going to the right child. For eg. if N = 2, and X = 0 = (00)2, it would correspond to the path which goes to the leftmost leaf. X = 3 = (11)2 would correspond to the path from root to the rightmost leaf.
+
+At the beginning, X = 0, and you have visited only the root till now. Then, you get Q queries. A query can be of two types:
+
+Type 1: "! C": This means that X has to be changed to X = ( X + 2C ) mod 2N, and then you start from the root, and walk down the route represented by the new X.
+Type 2: "?": This means that you should print the number of nodes that you have visited at least once.
+
+Solution:
+
+#include <bits/stdc++.h>
+using namespace std;
+
+#define rng(i,a,b) for(int i=int(a);i<int(b);i++)
+#define rep(i,b) rng(i,0,b)
+#define gnr(i,a,b) for(int i=int(b)-1;i>=int(a);i--)
+#define per(i,b) gnr(i,0,b)
+#define pb push_back
+#define eb emplace_back
+#define bg begin()
+#define ed end()
+#define all(x) (x).bg,(x).ed
+#define si(x) int((x).size())
+#define mp make_pair
+
+template<class t,class u> void chmax(t&a,u b){if(a<b)a=b;}
+template<class t,class u> void chmin(t&a,u b){if(b<a)a=b;}
+
+template<class t> using vc=vector<t>;
+template<class t> using vvc=vc<vc<t>>;
+
+using ll=long long;
+using uint=unsigned int;
+using pi=pair<int,int>;
+using vi=vc<int>;
+
+void brute(){
+	int n,q;cin>>n>>q;
+	string str(n,'0');
+	set<string>vis;
+	int tot=1;
+	auto lcp=[&](string a,string b)->int{
+		int res=0;
+		while(res<n&&a[res]==b[res])
+			res++;
+		return res;
+	};
+	auto add=[&](int c)->void{
+		while(c>=0&&str[c]=='1'){
+			str[c]='0';
+			c--;
+		}
+		if(c>=0)str[c]='1';
+
+		auto t=vis.insert(str);
+		if(!t.second)return;
+
+		auto itr=t.first;
+		if(itr!=vis.begin())
+			tot-=lcp(*prev(itr),*itr);
+		if(next(itr)!=vis.end())
+			tot-=lcp(*itr,*next(itr));
+		if(itr!=vis.begin()&&next(itr)!=vis.end())
+			tot+=lcp(*prev(itr),*next(itr));
+		tot+=n;
+	};
+	rep(_,q){
+		char t;cin>>t;
+		if(t=='!'){
+			int c;cin>>c;
+			c=n-1-c;
+			add(c);
+		}else if(t=='?'){
+			cout<<tot<<'\n';
+		}else assert(false);
+	}
+}
+
+const int nmax=1.1e5;
+uint wt[nmax];
+
+struct N{
+	N*c[2];
+	uint val;
+	N(){
+		c[0]=c[1]=nullptr;
+		val=0;
+	}
+};
+
+static const int smax=50*nmax;
+int s=0;
+N x[smax];
+
+void init(){
+	while(s){
+		s--;
+		x[s]=N();
+	}
+	assert(0==s);
+}
+
+N*build(int l,int r){
+	N*n=&x[s++];
+	if(r-l>1){
+		int m=(l+r)/2;
+		n->c[0]=build(l,m);
+		n->c[1]=build(m,r);
+	}
+	return n;
+}
+
+void upd(N*n){
+	n->val=n->c[0]->val^n->c[1]->val;
+}
+
+N*ch(N*n0,int l,int r,int p,int v){
+	N*n=&(x[s++]=*n0);
+	if(r-l==1){
+		assert(p==l);
+		n->val=(v?wt[l]:0);
+	}else{
+		int m=(l+r)/2;
+		if(p<m)n->c[0]=ch(n->c[0],l,m,p,v);
+		else n->c[1]=ch(n->c[1],m,r,p,v);
+		upd(n);
+	}
+	return n;
+}
+
+int lcp(N*a,N*b,int l,int r){
+	if(a->val==b->val)return r;
+	if(!a->c[0])return l;
+	int m=(l+r)/2;
+	if(a->c[0]->val==b->c[0]->val)
+		return lcp(a->c[1],b->c[1],m,r);
+	else
+		return lcp(a->c[0],b->c[0],l,m);
+}
+
+bool cmp(N*a,N*b){
+	if(!a->c[0])return a->val<b->val;
+	if(a->c[0]->val==b->c[0]->val)
+		return cmp(a->c[1],b->c[1]);
+	else
+		return cmp(a->c[0],b->c[0]);
+}
+
+struct S{
+	N*x;
+	S(N*x_):x(x_){}
+	bool operator<(const S&o)const{
+		return cmp(x,o.x);
+	}
+};
+
+void go(){
+	int n,q;cin>>n>>q;
+	init();
+	N*cur=build(0,n);
+
+	string str(n,'0');
+	set<S>st;
+	ll tot=1;
+	auto add=[&](int c){
+		while(c>=0&&str[c]=='1'){
+			str[c]='0';
+			cur=ch(cur,0,n,c,0);
+			c--;
+		}
+		if(c>=0){
+			assert(str[c]=='0');
+			str[c]='1';
+			cur=ch(cur,0,n,c,1);
+		}
+
+		auto t=st.insert(S(cur));
+		if(!t.second)return;
+		auto itr=t.first;
+		N*pr=(itr==st.begin()?nullptr:prev(itr)->x);
+		N*nx=(next(itr)==st.end()?nullptr:next(itr)->x);
+		if(pr)
+			tot-=lcp(pr,cur,0,n);
+		if(nx)
+			tot-=lcp(cur,nx,0,n);
+		if(pr&&nx)
+			tot+=lcp(pr,nx,0,n);
+		tot+=n;
+	};
+	rep(_,q){
+		char t;cin>>t;
+		if(t=='!'){
+			int c;cin>>c;
+			c=n-1-c;
+			add(c);
+		}else{
+			cout<<tot<<'\n';
+		}
+	}
+}
+
+int main(){
+	ios::sync_with_stdio(0);
+	cin.tie(0);
+
+	mt19937 mt(114514);
+	rep(i,nmax)wt[i]=mt();
+	
+	int t;cin>>t;
+	while(t--)go();
+}
